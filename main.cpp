@@ -34,7 +34,7 @@ int Random::possion(double rate)//使用inverse CDF方法（cumulative distribution f
 
 }
 
-double Random::uniform()//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数（作为possion分布函数的概率P(x=k)，反求对应的k数值）
+double Random::uniform()//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数（作为possion分布函数的概率P(x=k)，反求对应的k数值），参考C11浮点数均匀分布模板
 {
 
 }
