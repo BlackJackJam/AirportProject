@@ -21,3 +21,5 @@ Try to build a CPP project to realize these functions:
 * Use class to solve these problems
 * Use possion distribution to simulate number of planes ask to land/depart in a time unit
 * Some functions of the project have been given, including the main function
+
+**Developer:**BlackJackJam
