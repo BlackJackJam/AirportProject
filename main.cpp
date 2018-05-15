@@ -7,7 +7,7 @@ using namespace std;
 enum Error_code{success,underflow,overflow};
 enum Plane_status{null,arriving,departing};//飞机状态
 //enum Plane_emergency{mayday,normal};//飞机紧急状态，待实现
-extern int maxqueue
+//extern int maxqueue
 
 /*
 关于飞机紧急状态：
@@ -42,12 +42,12 @@ int Random::possion(double rate) const//使用inverse CDF方法（cumulative distribu
     int i=0,s;
     u=uniform();
     p1=0;
-    do
+    while(pi<u)
     {
         s=fac(i);//阶乘
         p1+=(exp(-rate)*rate^i)/s;//加和泊松分布
         i++;
-    }while(pi<u)
+    }
     return i;
 }
 
@@ -84,6 +84,7 @@ public:
     Error_code retrieve(T &item) const;
     void clear();
     Error_code serve_and_retrieve(T &item);
+    static int maxqueue;
 protected:
     int count;
     int front,rear;
@@ -217,7 +218,7 @@ private:
     int queue_limit;//队列最大长度
     int num_land_requests;//要求降落飞机数目
     int num_takeoff_requests;//要求起飞飞机数目
-    int num_landing;//已降落飞机数目
+    int num_landings;//已降落飞机数目
     int num_takeoffs;//已起飞飞机数目
     int num_land_accepted;//在降落队列中的飞机数目
     int num_takeoff_accepted;//在起飞队列中的飞机数目
@@ -227,7 +228,10 @@ private:
     int takeoff_wait;//飞机等待起飞总时间
     int idle_time;//机场处于空闲状态总时间
 };
-
+/*
+当飞机进入等待队列时开始计时，当飞机可以起降时，飞机将计时器结果提交给跑道，对等待时间进行加和
+另一种思路：对于求解总等待时间，在单位时间内，检索队列内的成员数，有几个成员等待时间就加几个时间单位
+*/
 void Runway::shut_down(int time) const
 //跑道数据在这里总结计算并打印出来
  {
@@ -276,7 +280,7 @@ void initialize(int &end_time,int &queue_limit,double &arrival_rate,double &depa
     <<"one plane can land or depart in each unit of time."<<endl;
     cout<<"Up to what number of planes can be waiting to land or take off at any time?"<<flush;
     cin>>queue_limit;
-    maxqueue=queue_limit;
+    Extended_Queue::maxqueue=queue_limit;
     cout<<"How many units of time will the simulation run?"<<flush;
     cin>>end_time;
     bool acceptable;
