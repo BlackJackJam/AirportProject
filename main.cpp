@@ -8,7 +8,6 @@ enum Error_code{success,underflow,overflow};
 enum Plane_status{null,arriving,departing};//飞机状态
 //enum Plane_emergency{mayday,normal};//飞机紧急状态，待实现
 //extern int maxqueue
-
 /*
 关于飞机紧急状态：
 如果飞机处于紧急状态(mayday)，需要迫降，则将会将目前降落队列中的飞机重新排列，
@@ -199,7 +198,7 @@ Plane::Plane(int flt,int time,Plane_status)
 
 void Plane::land(int time)
 {
-
+    cout<<""
 }
 
 enum Runway_activity{idle,land,takeoff};
@@ -212,9 +211,11 @@ public:
     Error_code can_takeoff(const Plane& current);
     Runway_activity activity(int time,Plane &moving);//跑道状态。（问题：如何决定降落或起飞？降落优先原则？等待时间最小原则？先来后到原则？）
     void shut_down(int time) const;
+    friend void run_idle(int time);
+    friend class Plane;
 private:
-    Extended_Queue landing;//等待降落飞机队列
-    Extended_Queue takeoff;//等待起飞飞机队列
+    Extended_Queue<Plane> landing;//等待降落飞机队列
+    Extended_Queue<Plane> takeoff;//等待起飞飞机队列
     int queue_limit;//队列最大长度
     int num_land_requests;//要求降落飞机数目
     int num_takeoff_requests;//要求起飞飞机数目
@@ -228,6 +229,70 @@ private:
     int takeoff_wait;//飞机等待起飞总时间
     int idle_time;//机场处于空闲状态总时间
 };
+
+Runway::Runway(int limit)
+{
+    Extended_Queue::maxqueue=limit;
+    queue_limit=limit;
+    num_land_requests=0;
+    num_takeoff_requests=0;
+    num_landings=0;
+    num_takeoffs=0;
+    num_land_accepted=0;
+    num_takeoff_accepted=0;
+    num_land_refused=0;
+    num_takeoff_refused=0;
+    land_wait=0;
+    takeoff_wait=0;
+    idle_time=0;
+}
+
+Error_code Runway::can_land(const Plane& current)
+{
+    num_land_requests++;
+    if (landing.append(const Plane& current)==success) num_land_accepted++;
+    else num_land_refused++;
+    return landing.append(const Plane& current);
+}
+
+Error_code Runway::can_takeoff(const Plane& current)
+{
+    num_takeoff_requests++;
+    if (takeoff.append(const Plane& current)==success) num_takeoff_accepted++;
+    else num_takeoff_refused++;
+    return takeoff.append(const Plane& current)
+}
+
+Runway_activity Runway::activity(int time,Plane &moving)
+{
+    if (landing.count==0&&takeoff==0)
+    {
+        idle_time++;
+        return idle;
+    }
+    else
+    {
+    if (landing.count>=takeoff.count)
+    {
+        landing.serve();
+        land_wait+=landing.count;
+        takeoff_wait+=takeoff.count;
+        num_landings++;
+        return land;
+    }
+    if (landing.count<takeoff)
+    {
+        takeoff.serve();
+        land_wait+=landing.count;
+        takeoff_wait+=takeoff.count;
+        num_takeoffs++;
+        return takeoff;
+    }
+
+    }
+}
+
+
 /*
 当飞机进入等待队列时开始计时，当飞机可以起降时，飞机将计时器结果提交给跑道，对等待时间进行加和
 另一种思路：对于求解总等待时间，在单位时间内，检索队列内的成员数，有几个成员等待时间就加几个时间单位
@@ -280,7 +345,6 @@ void initialize(int &end_time,int &queue_limit,double &arrival_rate,double &depa
     <<"one plane can land or depart in each unit of time."<<endl;
     cout<<"Up to what number of planes can be waiting to land or take off at any time?"<<flush;
     cin>>queue_limit;
-    Extended_Queue::maxqueue=queue_limit;
     cout<<"How many units of time will the simulation run?"<<flush;
     cin>>end_time;
     bool acceptable;
@@ -294,7 +358,7 @@ void initialize(int &end_time,int &queue_limit,double &arrival_rate,double &depa
         cerr << "These rates must be nonnegative." << endl;
         else
         acceptable = true;
-        if (acceptable && arrival_rate . departure_rate > 1.0)
+        if (acceptable && arrival_rate + departure_rate > 1.0)
         cerr << "Safety Warning: This airport will become saturated. " << endl;
     }while(!acceptable);
 }
@@ -318,16 +382,16 @@ int main()
         int number_departures = variable.poisson(departure_rate);
         for (int j = 0; j<number_departures; j++){
             Plane current_plane(flight_number++, current_time, departing);
-            if (small_airport.can_depart(current_plane) != success)//判断飞机能否起飞，并执行入队处理
+            if (small_airport.can_takeoff(current_plane) != success)//判断飞机能否起飞，并执行入队处理
             current_plane.refuse();//飞机被拒绝起飞
         }
         Plane moving_plane;
         switch (small_airport.activity(current_time,moving_plane)){//队列中的飞机出队并执行降落或起飞操作
             case land:
-                moving_plane.land(current_time);
+                moving_plane.land(current_time);//打印当前时间单元内有飞机降落
                 break;
             case takeoff:
-                moving_plane.fly(current_time);
+                moving_plane.fly(current_time);//打印当前时间单元内有飞机起飞
                 break;
             case idle:
                 run_idle(current_time);
