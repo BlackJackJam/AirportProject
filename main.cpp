@@ -4,6 +4,7 @@
 #include <time.h>//Use the clock to provide random numbers
 
 using namespace std;
+const int Maxqueue=10000;
 enum Error_code{success,underflow,overflow};
 enum Plane_status{null,arriving,departing};//飞机状态
 //enum Plane_emergency{mayday,normal};//飞机紧急状态，待实现
@@ -41,10 +42,10 @@ int Random::possion(double rate) const//使用inverse CDF方法（cumulative distribu
     int i=0,s;
     u=uniform();
     p1=0;
-    while(pi<u)
+    while(p1<u)
     {
         s=fac(i);//阶乘
-        p1+=(exp(-rate)*rate^i)/s;//加和泊松分布
+        p1+=pow((exp(-rate)*rate),i)/s;//加和泊松分布
         i++;
     }
     return i;
@@ -87,7 +88,7 @@ public:
 protected:
     int count;
     int front,rear;
-    T entry[maxqueue];
+    T entry[Maxqueue];
 };
 
 template<typename T> Extended_Queue<T>::Extended_Queue()
@@ -122,7 +123,7 @@ template<typename T> Error_code Extended_Queue<T>::append(const T &item)
 {
 if (count>=maxqueue) return overflow;
 count++;
-rear=((rear+1)==maxqueue)?0:rear+1;
+rear=((rear+1)==Maxqueue)?0:rear+1;
 entry[rear]=item;
 return success;
 }
@@ -186,17 +187,17 @@ Plane::Plane()
 {
     clock_start=0;
     flt_num=0;
-    Plane_status=null;
+    state=null;
 }
 
-Plane::Plane(int flt,int time,Plane_status)
+Plane::Plane(int flt,int time,Plane_status status)
 {
     clock_start=time;
     flt_num=flt;
     state=status;
 }
 
-void Plane::land(int time)
+void Plane::land(int time) const
 {
     cout<<""
 }
@@ -232,7 +233,6 @@ private:
 
 Runway::Runway(int limit)
 {
-    Extended_Queue::maxqueue=limit;
     queue_limit=limit;
     num_land_requests=0;
     num_takeoff_requests=0;
