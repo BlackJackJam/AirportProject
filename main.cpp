@@ -260,6 +260,8 @@ Runway::Runway(int limit)
 Error_code Runway::can_land(const Plane& current)
 {
     num_land_requests++;
+    cout.setf(std::ios::left);
+    cout.width(8);
     cout<<"Plane number "<<current.flt_num<<" ready to land."<endl;
     if (landing.append(const Plane& current)==success) num_land_accepted++;
     else num_land_refused++;
@@ -269,6 +271,8 @@ Error_code Runway::can_land(const Plane& current)
 Error_code Runway::can_takeoff(const Plane& current)
 {
     num_takeoff_requests++;
+    cout.setf(std::ios::left);
+    cout.width(8);
     cout<<"Plane number "<<current.flt_num<<" ready to take off."<<endl;
     if (takeoff.append(const Plane& current)==success) num_takeoff_accepted++;
     else num_takeoff_refused++;
@@ -305,7 +309,12 @@ Runway_activity Runway::activity(int time,Plane &moving)
 
 void run_idle(int &current_time)
 {
-    cout<<current_time<<": Runway is idle."<<endl;
+    cout.setf(std::ios::right);
+    cout.width(6);
+    cout<<current_time<<":";
+    cout.setf(std::ios::left);
+    cout.width(8);
+    cout<<"Runway is idle."<<endl;
 }
 
 /*
