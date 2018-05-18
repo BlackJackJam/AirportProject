@@ -3,6 +3,7 @@
 #include <random>//Template of random
 #include <time.h>//Use the clock to provide random numbers
 #include <windows.h>
+#define Strategy 1
 
 using namespace std;
 const int Maxqueue=10000;
@@ -355,7 +356,7 @@ Error_code Runway::can_takeoff(const Plane& current)
         return overflow;
     }
 }
-
+#if Strategy
 Runway_activity Runway::activity(int time,Plane &moving)
 {
     if ((landing.count==0)&&(takeoff.count==0))
@@ -383,7 +384,36 @@ Runway_activity Runway::activity(int time,Plane &moving)
     }
     }
 }
+#else
+Runway_activity Runway::activity(int time,Plane &moving)
+{
+    if ((landing.count==0)&&(takeoff.count==0))
+    {
+        idle_time++;
+        return idle;
+    }
+    else
+    {
+    if (landing.count>0)
+    {
+        landing.serve_and_retrieve(moving);
+        land_wait+=landing.count;
+        takeoff_wait+=takeoff.count;
+        num_landings++;
+        return land;
+    }
+    else
+    {
+        takeoff.serve_and_retrieve(moving);
+        land_wait+=landing.count;
+        takeoff_wait+=takeoff.count;
+        num_takeoffs++;
+        return Runway_activity::takeoff;
+    }
+    }
+}
 
+#endif
 
 void run_idle(int &current_time)
 {
