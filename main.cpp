@@ -260,6 +260,7 @@ Runway::Runway(int limit)
 Error_code Runway::can_land(const Plane& current)
 {
     num_land_requests++;
+    cout<<"Plane number "<<current.flt_num<<" ready to land."<endl;
     if (landing.append(const Plane& current)==success) num_land_accepted++;
     else num_land_refused++;
     return landing.append(const Plane& current);
@@ -268,6 +269,7 @@ Error_code Runway::can_land(const Plane& current)
 Error_code Runway::can_takeoff(const Plane& current)
 {
     num_takeoff_requests++;
+    cout<<"Plane number "<<current.flt_num<<" ready to take off."<<endl;
     if (takeoff.append(const Plane& current)==success) num_takeoff_accepted++;
     else num_takeoff_refused++;
     return takeoff.append(const Plane& current)
@@ -301,6 +303,10 @@ Runway_activity Runway::activity(int time,Plane &moving)
     }
 }
 
+void run_idle(int &current_time)
+{
+    cout<<current_time<<": Runway is idle."<<endl;
+}
 
 /*
 当飞机进入等待队列时开始计时，当飞机可以起降时，飞机将计时器结果提交给跑道，对等待时间进行加和
