@@ -3,7 +3,7 @@
 #include <random>//Template of random
 #include <time.h>//Use the clock to provide random numbers
 #include <windows.h>
-#define Strategy 1
+#define Strategy 1//控制起降策略
 
 using namespace std;
 const int Maxqueue=10000;
@@ -11,7 +11,7 @@ enum Error_code{success,underflow,overflow};
 enum Plane_status{null,arriving,departing};//飞机状态
 //enum Plane_emergency{mayday,normal};//飞机紧急状态，待实现
 //extern int maxqueue
-/*
+/*（未实现）
 关于飞机紧急状态：
 如果飞机处于紧急状态(mayday)，需要迫降，则将会将目前降落队列中的飞机重新排列，
 使得紧急状态的飞机处于队头（如果有多架mayday飞机，则依次排列），原有队列中的飞机按照原顺序，
@@ -19,14 +19,18 @@ enum Plane_status{null,arriving,departing};//飞机状态
 紧急状态飞机的降落请求必须被接受，
 因此，即使原有队列已满，紧急状态飞机仍会入队，与此同时，原有队列最后一架飞机会被逐出队列
 */
-/*
+/*（未实现）
 多跑道机制:
 假定机场可以拥有多条跑道，则优先给企图降落的飞机匹配等待飞机数最少的跑道（对于mayday飞机也是如此）
 此处，我们需要比较不同跑道的queue中元素的数量，找出最小值。
 对于多跑道机场（其实单跑道机场也可以），还可以设计跑道事故机制，
 即跑道可能处于不同原因导致关闭，所有队列中的飞机均暂时停止起降。
 */
-
+/*（已实现）
+起降策略：通过条件编译选择不同的起降控制策略，默认为比较起降队列中的飞机数，
+飞机数目多的队列先执行相应操作。
+若两队列飞机数目相同，优先执行降落队列。
+*/
 class Random
 {
 public:
