@@ -29,14 +29,14 @@ enum Plane_status{null,arriving,departing};//飞机状态
 class Random
 {
 public:
-     int possion(double rate) const;
+     int poisson(double rate) const;
      double uniform() const;
 private:
      int fac(int n) const;
 };
 
 
-int Random::possion(double rate) const//使用inverse CDF方法（cumulative distribution function）将possion分布的反函数求出，通过均匀分布随机数，得出possion分布随机数
+int Random::poisson(double rate) const//使用inverse CDF方法（cumulative distribution function）将poisson分布的反函数求出，通过均匀分布随机数，得出possion分布随机数
 //只要生成一个0到1之间的随机数，然后看泊松分布的前几项和刚好大于这个随机数就行了。(所谓的inverse CDF方法)
 {
     double u,p1;
@@ -55,7 +55,7 @@ int Random::possion(double rate) const//使用inverse CDF方法（cumulative distribu
 经过测试，本泊松分布模拟函数产生数值基本符合泊松分布要求，但是波动范围较大，且倾向于实际小于rate
 */
 
-double Random::uniform() const//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数（作为possion分布函数的概率P(x=k)，反求对应的k数值），参考C11浮点数均匀分布模板
+double Random::uniform() const//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数（作为poisson分布函数的概率P(x=k)，反求对应的k数值），参考C11浮点数均匀分布模板
 {
     LARGE_INTEGER nFrequency;
     if(::QueryPerformanceFrequency(&nFrequency))
@@ -86,6 +86,7 @@ template<typename T> class Extended_Queue
 {
 public:
     Extended_Queue();
+    Extended_Queue(int limit);
     bool empty() const;//成员可调用不可修改
     bool full() const;
     int size() const;
@@ -94,7 +95,9 @@ public:
     Error_code retrieve(T &item) const;
     void clear();
     Error_code serve_and_retrieve(T &item);
-    static int maxqueue;
+    int maxqueue;
+    void setlimit(int limit);
+    friend class Runway;
 protected:
     int count;
     int front,rear;
@@ -106,10 +109,24 @@ template<typename T> Extended_Queue<T>::Extended_Queue()
     //Extended_Queue* q=new Extended_Queue();
     count=0;
     front=0;
+    maxqueue=Maxqueue;
     rear=maxqueue-1;
 }
 
+template<typename T> Extended_Queue<T>::Extended_Queue(int limit)
+{
+    //Extended_Queue* q=new Extended_Queue();
+    count=0;
+    front=0;
+    maxqueue=limit;
+    rear=maxqueue-1;
+}
 
+template<typename T> void Extended_Queue<T>::setlimit(int limit)
+{
+    //Extended_Queue* q=new Extended_Queue();
+    maxqueue=limit;
+}
 
 template<typename T> bool Extended_Queue<T>::empty() const
 {
@@ -169,6 +186,8 @@ count--;
 front=((front+1)==maxqueue)?0:front+1;
 return success;
 }
+
+
 //以上为队列操作函数
 
 
@@ -182,6 +201,7 @@ public:
     void land(int time) const;//if landing
     void fly(int time) const;
     int started() const;
+    friend class Runway;
 private:
     int flt_num;//flight number
     int clock_start;//count waiting time
@@ -207,9 +227,47 @@ Plane::Plane(int flt,int time,Plane_status status)
     state=status;
 }
 
+void Plane::refuse() const
+{
+	if(state==arriving)
+    {
+        cout.setf(std::ios::left);
+        cout.width(8);
+        cout<<"Plane number "<<flt_num<<" told try to land again later.";
+    }
+	if(state==departing)
+    {
+        cout.setf(std::ios::left);
+        cout.width(8);
+        cout<<"Plane number "<<flt_num<<" told try to take off again later.";
+    }
+}
+
 void Plane::land(int time) const
 {
-    cout<<""
+    int wait_time=time-clock_start;
+    cout.setf(std::ios::right);
+    cout.width(6);
+    cout<<time<<":";
+    cout.setf(std::ios::left);
+    cout.width(8);
+    cout<<"Plane number "<<flt_num<<" land after "<<wait_time<<" time unit"<<" in the landing queue"<<endl;
+}
+
+void Plane::fly(int time) const
+{
+	int wait_time=time-clock_start;
+	cout.setf(std::ios::right);
+    cout.width(6);
+    cout<<time<<":";
+    cout.setf(std::ios::left);
+    cout.width(8);
+    cout<<"Plane number "<<flt_num<<" take off after "<<wait_time<<" time unit"<<" in the takeoff queue"<<endl;
+}
+
+int Plane::started() const
+{
+	return clock_start;
 }
 
 enum Runway_activity{idle,land,takeoff};
@@ -223,7 +281,6 @@ public:
     Runway_activity activity(int time,Plane &moving);//跑道状态。（问题：如何决定降落或起飞？降落优先原则？等待时间最小原则？先来后到原则？）
     void shut_down(int time) const;
     friend void run_idle(int time);
-    friend class Plane;
 private:
     Extended_Queue<Plane> landing;//等待降落飞机队列
     Extended_Queue<Plane> takeoff;//等待起飞飞机队列
@@ -244,6 +301,8 @@ private:
 Runway::Runway(int limit)
 {
     queue_limit=limit;
+    landing.setlimit(queue_limit);
+    takeoff.setlimit(queue_limit);
     num_land_requests=0;
     num_takeoff_requests=0;
     num_landings=0;
@@ -262,10 +321,10 @@ Error_code Runway::can_land(const Plane& current)
     num_land_requests++;
     cout.setf(std::ios::left);
     cout.width(8);
-    cout<<"Plane number "<<current.flt_num<<" ready to land."<endl;
-    if (landing.append(const Plane& current)==success) num_land_accepted++;
+    cout<<"Plane number "<<current.flt_num<<" ready to land."<<endl;
+    if (landing.append(current)==success) num_land_accepted++;
     else num_land_refused++;
-    return landing.append(const Plane& current);
+    return landing.append(current);
 }
 
 Error_code Runway::can_takeoff(const Plane& current)
@@ -274,14 +333,14 @@ Error_code Runway::can_takeoff(const Plane& current)
     cout.setf(std::ios::left);
     cout.width(8);
     cout<<"Plane number "<<current.flt_num<<" ready to take off."<<endl;
-    if (takeoff.append(const Plane& current)==success) num_takeoff_accepted++;
+    if (takeoff.append(current)==success) num_takeoff_accepted++;
     else num_takeoff_refused++;
-    return takeoff.append(const Plane& current)
+    return takeoff.append(current);
 }
 
 Runway_activity Runway::activity(int time,Plane &moving)
 {
-    if (landing.count==0&&takeoff==0)
+    if ((landing.count==0)&&(takeoff.count==0))
     {
         idle_time++;
         return idle;
@@ -296,16 +355,17 @@ Runway_activity Runway::activity(int time,Plane &moving)
         num_landings++;
         return land;
     }
-    if (landing.count<takeoff)
+    if (landing.count<takeoff.count)
     {
         takeoff.serve_and_retrieve(moving);
         land_wait+=landing.count;
         takeoff_wait+=takeoff.count;
         num_takeoffs++;
-        return takeoff;
+        return Runway_activity::takeoff;
     }
     }
 }
+
 
 void run_idle(int &current_time)
 {
