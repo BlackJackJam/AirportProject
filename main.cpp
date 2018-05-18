@@ -51,6 +51,9 @@ int Random::possion(double rate) const//使用inverse CDF方法（cumulative distribu
     }
     return i-1;
 }
+/*
+经过测试，本泊松分布模拟函数产生数值基本符合泊松分布要求，但是波动范围较大，且倾向于实际小于rate
+*/
 
 double Random::uniform() const//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数（作为possion分布函数的概率P(x=k)，反求对应的k数值），参考C11浮点数均匀分布模板
 {
@@ -62,7 +65,7 @@ double Random::uniform() const//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数
             std::default_random_engine random(nStartCounter.LowPart);
             std::uniform_real_distribution<double> dis2(0.0,1.0);
     return dis2(random);
-    }
+    }//调取CPU时间，可以精确到微秒，因此不用重新制作种子即可实现重新调用时产生不同随机数
 }
 
 int Random::fac(int n) const
@@ -281,7 +284,7 @@ Runway_activity Runway::activity(int time,Plane &moving)
     {
     if (landing.count>=takeoff.count)
     {
-        landing.serve();
+        landing.serve_and_retrieve(moving);
         land_wait+=landing.count;
         takeoff_wait+=takeoff.count;
         num_landings++;
@@ -289,13 +292,12 @@ Runway_activity Runway::activity(int time,Plane &moving)
     }
     if (landing.count<takeoff)
     {
-        takeoff.serve();
+        takeoff.serve_and_retrieve(moving);
         land_wait+=landing.count;
         takeoff_wait+=takeoff.count;
         num_takeoffs++;
         return takeoff;
     }
-
     }
 }
 
