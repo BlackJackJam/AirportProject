@@ -2,6 +2,7 @@
 #include <cmath>
 #include <random>//Template of random
 #include <time.h>//Use the clock to provide random numbers
+#include <windows.h>
 
 using namespace std;
 const int Maxqueue=10000;
@@ -45,17 +46,23 @@ int Random::possion(double rate) const//使用inverse CDF方法（cumulative distribu
     while(p1<u)
     {
         s=fac(i);//阶乘
-        p1+=pow((exp(-rate)*rate),i)/s;//加和泊松分布
+        p1+=(exp(-rate)*pow(rate,i))/s;//加和泊松分布
         i++;
     }
-    return i;
+    return i-1;
 }
 
 double Random::uniform() const//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数（作为possion分布函数的概率P(x=k)，反求对应的k数值），参考C11浮点数均匀分布模板
 {
-    std::default_random_engine random(time(NULL));
-    std::uniform_real_distribution<double> dis2(0.0,1.0);
+    LARGE_INTEGER nFrequency;
+    if(::QueryPerformanceFrequency(&nFrequency))
+    {
+            LARGE_INTEGER nStartCounter;
+            ::QueryPerformanceCounter(&nStartCounter);
+            std::default_random_engine random(nStartCounter.LowPart);
+            std::uniform_real_distribution<double> dis2(0.0,1.0);
     return dis2(random);
+    }
 }
 
 int Random::fac(int n) const
