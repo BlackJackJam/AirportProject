@@ -86,7 +86,6 @@ template<typename T> class Extended_Queue
 {
 public:
     Extended_Queue();
-    Extended_Queue(int limit);
     bool empty() const;//成员可调用不可修改
     bool full() const;
     int size() const;
@@ -95,10 +94,10 @@ public:
     Error_code retrieve(T &item) const;
     void clear();
     Error_code serve_and_retrieve(T &item);
-    int maxqueue;
     void setlimit(int limit);
     friend class Runway;
 protected:
+    int maxqueue;
     int count;
     int front,rear;
     T entry[Maxqueue];
@@ -113,19 +112,12 @@ template<typename T> Extended_Queue<T>::Extended_Queue()
     rear=maxqueue-1;
 }
 
-template<typename T> Extended_Queue<T>::Extended_Queue(int limit)
-{
-    //Extended_Queue* q=new Extended_Queue();
-    count=0;
-    front=0;
-    maxqueue=limit;
-    rear=maxqueue-1;
-}
 
 template<typename T> void Extended_Queue<T>::setlimit(int limit)
 {
     //Extended_Queue* q=new Extended_Queue();
     maxqueue=limit;
+    rear=maxqueue-1;
 }
 
 template<typename T> bool Extended_Queue<T>::empty() const
@@ -150,7 +142,7 @@ template<typename T> Error_code Extended_Queue<T>::append(const T &item)
 {
 if (count>=maxqueue) return overflow;
 count++;
-rear=((rear+1)==Maxqueue)?0:rear+1;
+rear=((rear+1)==maxqueue)?0:rear+1;
 entry[rear]=item;
 return success;
 }
@@ -231,15 +223,21 @@ void Plane::refuse() const
 {
 	if(state==arriving)
     {
+        cout.setf(std::ios::right);
+        cout.width(7);
+        cout<<" ";
         cout.setf(std::ios::left);
         cout.width(8);
-        cout<<"Plane number "<<flt_num<<" told try to land again later.";
+        cout<<"Plane number "<<flt_num<<" told try to land again later."<<endl;
     }
 	if(state==departing)
     {
+        cout.setf(std::ios::right);
+        cout.width(7);
+        cout<<" ";
         cout.setf(std::ios::left);
         cout.width(8);
-        cout<<"Plane number "<<flt_num<<" told try to take off again later.";
+        cout<<"Plane number "<<flt_num<<" told try to take off again later."<<endl;
     }
 }
 
@@ -251,7 +249,7 @@ void Plane::land(int time) const
     cout<<time<<":";
     cout.setf(std::ios::left);
     cout.width(8);
-    cout<<"Plane number "<<flt_num<<" land after "<<wait_time<<" time unit"<<" in the landing queue"<<endl;
+    cout<<"Plane number "<<flt_num<<" land after "<<wait_time<<" time units"<<" in the landing queue."<<endl;
 }
 
 void Plane::fly(int time) const
@@ -262,7 +260,7 @@ void Plane::fly(int time) const
     cout<<time<<":";
     cout.setf(std::ios::left);
     cout.width(8);
-    cout<<"Plane number "<<flt_num<<" take off after "<<wait_time<<" time unit"<<" in the takeoff queue"<<endl;
+    cout<<"Plane number "<<flt_num<<" take off after "<<wait_time<<" time units"<<" in the takeoff queue."<<endl;
 }
 
 int Plane::started() const
@@ -319,23 +317,43 @@ Runway::Runway(int limit)
 Error_code Runway::can_land(const Plane& current)
 {
     num_land_requests++;
+    cout.setf(std::ios::right);
+    cout.width(7);
+    cout<<" ";
     cout.setf(std::ios::left);
     cout.width(8);
     cout<<"Plane number "<<current.flt_num<<" ready to land."<<endl;
-    if (landing.append(current)==success) num_land_accepted++;
-    else num_land_refused++;
-    return landing.append(current);
+    if (landing.append(current)==success)
+    {
+        num_land_accepted++;
+        return success;
+    }
+    else
+    {
+        num_land_refused++;
+        return overflow;
+    }
 }
 
 Error_code Runway::can_takeoff(const Plane& current)
 {
     num_takeoff_requests++;
+    cout.setf(std::ios::right);
+    cout.width(7);
+    cout<<" ";
     cout.setf(std::ios::left);
     cout.width(8);
     cout<<"Plane number "<<current.flt_num<<" ready to take off."<<endl;
-    if (takeoff.append(current)==success) num_takeoff_accepted++;
-    else num_takeoff_refused++;
-    return takeoff.append(current);
+    if (takeoff.append(current)==success)
+    {
+        num_takeoff_accepted++;
+        return success;
+    }
+    else
+    {
+        num_takeoff_refused++;
+        return overflow;
+    }
 }
 
 Runway_activity Runway::activity(int time,Plane &moving)
@@ -396,13 +414,13 @@ void Runway::shut_down(int time) const
     <<"Total number of planes accepted for takeoff"
     << num_takeoff_accepted<<endl
     <<"Total number of planes refused for landing"
-    << num_takeoff_accepted<<endl
+    << num_land_refused<<endl
     <<"Total number of planes refused for takeoff"
-    << num_takeoff_accepted<<endl
+    << num_takeoff_refused<<endl
     <<"Total number of planes that landed"
-    << num_takeoff_accepted<<endl
+    << num_landings<<endl
     <<"Total number of planes that took off"
-    << num_takeoff_accepted<<endl
+    << num_takeoffs<<endl
     <<"Total number of planes left landing queue"
     << landing.count<<endl
     <<"Total number of planes left in takeoff queue"
@@ -456,21 +474,25 @@ int main()
     initialize(end_time,queue_limit,arrival_rate,departure_rate);
     Random variable;
     Runway small_airport(queue_limit);
-    for (int current_time = 0; current_time<end_time;current_time++){
+    for (int current_time = 0; current_time<end_time;current_time++)
+        {
         int number_arrivals = variable.poisson(arrival_rate);//用泊松分布写随机函数（单位时间内到达的飞机数）
-        for (int i = 0; i < number_arrivals; i++){
+        for (int i = 0; i < number_arrivals; i++)
+        {
             Plane current_plane(flight_number++, current_time, arriving);//mayday机制待处理，此处应将mayday分开
-            if (small_airport.can_land(current_plane) != success)//can_land函数为判断飞机能否降落函数，即landing队列是否为满，并执行入队处理
+            if (small_airport.can_land(current_plane)!= success)//can_land函数为判断飞机能否降落函数，即landing队列是否为满，并执行入队处理
             current_plane.refuse();//飞机被拒绝降落
         }
         int number_departures = variable.poisson(departure_rate);
-        for (int j = 0; j<number_departures; j++){
+        for (int j = 0; j<number_departures; j++)
+        {
             Plane current_plane(flight_number++, current_time, departing);
-            if (small_airport.can_takeoff(current_plane) != success)//判断飞机能否起飞，并执行入队处理
+            if (small_airport.can_takeoff(current_plane)!= success)//判断飞机能否起飞，并执行入队处理
             current_plane.refuse();//飞机被拒绝起飞
         }
         Plane moving_plane;
-        switch (small_airport.activity(current_time,moving_plane)){//队列中的飞机出队并执行降落或起飞操作
+        switch (small_airport.activity(current_time,moving_plane))
+        {//队列中的飞机出队并执行降落或起飞操作
             case land:
                 moving_plane.land(current_time);//打印当前时间单元内有飞机降落
                 break;
