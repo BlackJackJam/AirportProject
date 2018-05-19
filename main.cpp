@@ -8,7 +8,7 @@
 using namespace std;
 const int Maxqueue=10000;
 enum Error_code{success,underflow,overflow};
-enum Plane_status{null,arriving,departing};//飞机状态
+enum Plane_status{null,arriving,departing,emergency};//飞机状态
 //enum Plane_emergency{mayday,normal};//飞机紧急状态，待实现
 //extern int maxqueue
 /*（未实现）
@@ -197,6 +197,7 @@ public:
     void refuse() const;//takeoff or landing is refused
     void land(int time) const;//if landing
     void fly(int time) const;
+    void emergency_land(int time) const;
     int started() const;
     friend class Runway;
 private:
@@ -244,6 +245,15 @@ void Plane::refuse() const
         cout.width(8);
         cout<<"Plane number "<<flt_num<<" told try to take off again later."<<endl;
     }
+    if(state==emergency)
+    {
+        cout.setf(std::ios::right);
+        cout.width(7);
+        cout<<" ";
+        cout.setf(std::ios::left);
+        cout.width(8);
+        cout<<"Plane number "<<flt_num<<" told try to take an emergency landing again later."<<endl;
+    }
 }
 
 void Plane::land(int time) const
@@ -255,6 +265,17 @@ void Plane::land(int time) const
     cout.setf(std::ios::left);
     cout.width(8);
     cout<<"Plane number "<<flt_num<<" land after "<<wait_time<<" time units"<<" in the landing queue."<<endl;
+}
+
+void Plane::emergency_land(int time) const
+{
+    int wait_time=time-clock_start;
+    cout.setf(std::ios::right);
+    cout.width(6);
+    cout<<time<<":";
+    cout.setf(std::ios::left);
+    cout.width(8);
+    cout<<"Plane number "<<flt_num<<" take an emergency landing successfully after "<<wait_time<<" time units"<<" in the landing queue."<<endl;
 }
 
 void Plane::fly(int time) const
@@ -273,7 +294,7 @@ int Plane::started() const
 	return clock_start;
 }
 
-enum Runway_activity{idle,land,takeoff};
+enum Runway_activity{idle,land,takeoff,emergency_landing};
 
 class Runway
 {
@@ -281,23 +302,30 @@ public:
     Runway(int limit);
     Error_code can_land(const Plane& current);
     Error_code can_takeoff(const Plane& current);
+    Error_code can_extreme_landing(const Plane& current);
     Runway_activity activity(int time,Plane &moving);//跑道状态。（问题：如何决定降落或起飞？降落优先原则？等待时间最小原则？先来后到原则？）
     void shut_down(int time) const;
     friend void run_idle(int time);
 private:
     Extended_Queue<Plane> landing;//等待降落飞机队列
     Extended_Queue<Plane> takeoff;//等待起飞飞机队列
+    Extended_Queue<Plane> extreme_landing;//迫降队列
     int queue_limit;//队列最大长度
     int num_land_requests;//要求降落飞机数目
     int num_takeoff_requests;//要求起飞飞机数目
+    int num_extreme_requests;//要求迫降飞机数
     int num_landings;//已降落飞机数目
     int num_takeoffs;//已起飞飞机数目
+    int num_extremes;//已迫降飞机数
     int num_land_accepted;//在降落队列中的飞机数目
     int num_takeoff_accepted;//在起飞队列中的飞机数目
+    int num_extreme_accepted;//迫降队列中的飞机数
     int num_land_refused;//别拒绝降落的飞机数目
     int num_takeoff_refused;//被拒绝起飞飞机数目
+    int num_extreme_refused;//被拒绝迫降飞机数目
     int land_wait;//飞机等待降落总时间
     int takeoff_wait;//飞机等待起飞总时间
+    int extreme_wait;//迫降飞机等待时间
     int idle_time;//机场处于空闲状态总时间
 };
 
@@ -306,16 +334,22 @@ Runway::Runway(int limit)
     queue_limit=limit;
     landing.setlimit(queue_limit);
     takeoff.setlimit(queue_limit);
+    extreme_landing.setlimit(queue_limit);
     num_land_requests=0;
     num_takeoff_requests=0;
+    num_extreme_requests=0;
     num_landings=0;
     num_takeoffs=0;
+    num_extremes=0;
     num_land_accepted=0;
     num_takeoff_accepted=0;
+    num_extreme_accepted=0;
     num_land_refused=0;
     num_takeoff_refused=0;
+    num_extreme_refused=0;
     land_wait=0;
     takeoff_wait=0;
+    extreme_wait=0;
     idle_time=0;
 }
 
@@ -360,32 +394,66 @@ Error_code Runway::can_takeoff(const Plane& current)
         return overflow;
     }
 }
-#if Strategy
-Runway_activity Runway::activity(int time,Plane &moving)
+
+Error_code Runway::can_extreme_landing(const Plane& current)
 {
-    if ((landing.count==0)&&(takeoff.count==0))
+    num_extreme_requests++;
+    cout.setf(std::ios::right);
+    cout.width(7);
+    cout<<" ";
+    cout.setf(std::ios::left);
+    cout.width(8);
+    cout<<"Plane number "<<current.flt_num<<" ready to take an emergency landing."<<endl;
+    if (extreme_landing.append(current)==success)
     {
-        idle_time++;
-        return idle;
+        num_extreme_accepted++;
+        return success;
     }
     else
     {
-    if (landing.count>=takeoff.count)
+        num_extreme_refused++;
+        return overflow;
+    }
+}
+
+#if Strategy
+Runway_activity Runway::activity(int time,Plane &moving)
+{
+    if (extreme_landing.count>0)
     {
-        landing.serve_and_retrieve(moving);
+        extreme_landing.serve_and_retrieve(moving);
         land_wait+=landing.count;
         takeoff_wait+=takeoff.count;
-        num_landings++;
-        return land;
+        extreme_wait+=extreme_landing.count;
+        num_extremes++;
+        return emergency_landing;
     }
-    if (landing.count<takeoff.count)
+    else
     {
-        takeoff.serve_and_retrieve(moving);
-        land_wait+=landing.count;
-        takeoff_wait+=takeoff.count;
-        num_takeoffs++;
-        return Runway_activity::takeoff;
-    }
+        if ((landing.count==0)&&(takeoff.count==0))
+        {
+            idle_time++;
+            return idle;
+        }
+        else
+        {
+            if (landing.count>=takeoff.count)
+            {
+                landing.serve_and_retrieve(moving);
+                land_wait+=landing.count;
+                takeoff_wait+=takeoff.count;
+                num_landings++;
+                return land;
+            }
+            if (landing.count<takeoff.count)
+            {
+                takeoff.serve_and_retrieve(moving);
+                land_wait+=landing.count;
+                takeoff_wait+=takeoff.count;
+                num_takeoffs++;
+                return Runway_activity::takeoff;
+            }
+        }
     }
 }
 #else
@@ -443,22 +511,32 @@ void Runway::shut_down(int time) const
     << num_land_requests<<endl
     <<"Total number of planes asking to taking off"
     << num_takeoff_requests<<endl
+    <<"Total number of planes asking to take emergency landing"
+    << num_extreme_requests<<endl
     <<"Total number of planes accepted for landing"
     << num_land_accepted<<endl
     <<"Total number of planes accepted for takeoff"
     << num_takeoff_accepted<<endl
+    <<"Total number of planes accepted for emergency landing"
+    << num_extreme_accepted<<endl
     <<"Total number of planes refused for landing"
     << num_land_refused<<endl
     <<"Total number of planes refused for takeoff"
     << num_takeoff_refused<<endl
+    <<"Total number of planes refused for emergency landing"
+    << num_extreme_refused<<endl
     <<"Total number of planes that landed"
     << num_landings<<endl
     <<"Total number of planes that took off"
     << num_takeoffs<<endl
+    <<"Total number of planes that took emergency landing"
+    << num_extremes<<endl
     <<"Total number of planes left landing queue"
     << landing.count<<endl
     <<"Total number of planes left in takeoff queue"
-    << takeoff.count<<endl;
+    << takeoff.count<<endl
+    <<"Total number of planes left in emergency landing queue"
+    << extreme_landing.count<<endl;
     cout << "Percentage of time runway idle "
     << 100.0 * ((float) idle_time)/((float) time) << "%" << endl;
     cout << "Average wait in landing queue "
@@ -504,12 +582,19 @@ int main()
     int end_time;
     int queue_limit;
     int flight_number=0;
-    double arrival_rate,departure_rate;
+    double arrival_rate,departure_rate,emergent_rate=0.0001;
     initialize(end_time,queue_limit,arrival_rate,departure_rate);
     Random variable;
     Runway small_airport(queue_limit);
     for (int current_time = 0; current_time<end_time;current_time++)
         {
+        int number_extreme = variable.poisson(emergent_rate);//用泊松分布写随机函数（单位时间内到达的飞机数）
+        for (int i = 0; i < number_extreme; i++)
+        {
+            Plane current_plane(flight_number++, current_time, emergency);//mayday机制待处理，此处应将mayday分开
+            if (small_airport.can_extreme_landing(current_plane)!= success)//can_land函数为判断飞机能否降落函数，即landing队列是否为满，并执行入队处理
+            current_plane.refuse();//飞机被拒绝降落
+        }
         int number_arrivals = variable.poisson(arrival_rate);//用泊松分布写随机函数（单位时间内到达的飞机数）
         for (int i = 0; i < number_arrivals; i++)
         {
@@ -532,6 +617,9 @@ int main()
                 break;
             case takeoff:
                 moving_plane.fly(current_time);//打印当前时间单元内有飞机起飞
+                break;
+            case emergency_landing:
+                moving_plane.emergency_land(current_time);
                 break;
             case idle:
                 run_idle(current_time);
