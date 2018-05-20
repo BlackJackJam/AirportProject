@@ -3,7 +3,7 @@
 #include <random>//Template of random
 #include <time.h>//Use the clock to provide random numbers
 #include <windows.h>
-#define Strategy 1//控制起降策略
+#define Strategy 0//控制起降策略
 
 using namespace std;
 const int Maxqueue=10000;
@@ -459,7 +459,18 @@ Runway_activity Runway::activity(int time,Plane &moving)
 #else
 Runway_activity Runway::activity(int time,Plane &moving)
 {
-    if ((landing.count==0)&&(takeoff.count==0))
+    if(extreme_landing.count>0)
+    {
+        extreme_landing.serve_and_retrieve(moving);
+        land_wait+=landing.count;
+        takeoff_wait+=takeoff.count;
+        extreme_wait+=extreme_landing.count;
+        num_extremes++;
+        return emergency_landing;
+    }
+    else
+    {
+     if ((landing.count==0)&&(takeoff.count==0))
     {
         idle_time++;
         return idle;
@@ -481,6 +492,7 @@ Runway_activity Runway::activity(int time,Plane &moving)
         takeoff_wait+=takeoff.count;
         num_takeoffs++;
         return Runway_activity::takeoff;
+    }
     }
     }
 }
