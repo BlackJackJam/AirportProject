@@ -80,7 +80,7 @@ double Random::uniform() const//0~1之间均匀分布随机函数，均匀随机生成0~1之间的数
 
 int Random::fac(int n) const
 {
-    if(n=0) return 1;
+    if(n==0) return 1;
     else
     {
         int k,n1=1;
